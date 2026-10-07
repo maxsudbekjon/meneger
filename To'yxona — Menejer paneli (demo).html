@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>To'yxona — Menejer paneli (demo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    box-sizing: border-box;
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-alt: #F4F4F2;
+    --ink: #151515;
+    --ink-soft: #5E5E5B;
+    --ink-faint: #949490;
+    --line: #E4E4E0;
+    --accent: #151515;
+    --accent-strong: #000000;
+    --accent-tint: #F0F0ED;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.07);
+    --radius-s: 8px;
+    --radius-m: 14px;
+    --radius-l: 22px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#131313; --surface:#1A1A1A; --surface-alt:#202020; --ink:#F1F1EE; --ink-soft:#B8B8B3; --ink-faint:#7E7E78;
+      --line:#2B2B2B; --accent:#F1F1EE; --accent-strong:#FFFFFF; --accent-tint:#232323;
+      --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#131313; --surface:#1A1A1A; --surface-alt:#202020; --ink:#F1F1EE; --ink-soft:#B8B8B3; --ink-faint:#7E7E78;
+    --line:#2B2B2B; --accent:#F1F1EE; --accent-strong:#FFFFFF; --accent-tint:#232323;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--surface-alt); color: var(--ink);
+    font-family: 'Manrope', -apple-system, sans-serif; -webkit-font-smoothing: antialiased;
+    padding-top: env(safe-area-inset-top,0px); padding-bottom: env(safe-area-inset-bottom,0px);
+  }
+  h1,h2,h3,.serif { font-family:'Fraunces', Georgia, serif; font-weight: 500; letter-spacing:-.01em; margin:0; }
+  button { font-family: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; }
+
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--bg); box-shadow: var(--shadow); position: relative; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: 1px solid var(--line);
+    padding: 16px 20px 14px; padding-top: calc(env(safe-area-inset-top,0px) + 16px);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .topbar .venue { display:flex; align-items:center; gap:10px; }
+  .venue-avatar { width:36px; height:36px; border-radius:10px; background: var(--accent); color:var(--bg); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-size:1rem; flex:none; }
+  .venue-name { font-size: .95rem; font-weight: 700; }
+  .venue-role { font-size: .74rem; color: var(--ink-faint); }
+  .topbar-icon { width:34px; height:34px; border-radius:50%; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--ink-soft); background:none; position:relative; }
+  .topbar-icon svg { width:16px; height:16px; }
+  .icon-badge { position:absolute; top:-3px; right:-3px; background:var(--accent-strong); color:var(--bg); font-size:.6rem; min-width:15px; height:15px; border-radius:50%; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+
+  main { padding: 18px 20px 100px; min-height: calc(100vh - 66px); }
+  .view { display:none; }
+  .view.active { display:block; animation: fadein .15s ease; }
+  @keyframes fadein { from{opacity:0} to{opacity:1} }
+
+  .page-title { font-size: 1.35rem; margin-bottom: 4px; }
+  .page-sub { font-size: .84rem; color: var(--ink-faint); margin-bottom: 18px; }
+
+  /* ---- Calendar ---- */
+  .month-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; }
+  .month-nav h2 { font-size: 1.1rem; }
+  .month-nav button { background:var(--surface-alt); border:1px solid var(--line); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; }
+  .month-nav button svg { width:14px; height:14px; }
+  .weekday-row { display:grid; grid-template-columns: repeat(7,1fr); text-align:center; font-size:.7rem; color:var(--ink-faint); margin-bottom:6px; }
+  .cal-grid { display:grid; grid-template-columns: repeat(7,1fr); gap:4px; }
+  .cal-cell {
+    aspect-ratio: 1; border-radius: 10px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size:.82rem; position:relative; border:1px solid transparent; background: var(--surface-alt); color: var(--ink);
+  }
+  .cal-cell.dim { color: var(--ink-faint); background: transparent; }
+  .cal-cell.today { border-color: var(--accent); font-weight:700; }
+  .cal-cell .dots { display:flex; gap:3px; position:absolute; bottom:6px; }
+  .dot { width:5px; height:5px; border-radius:50%; }
+  .dot.ok { background: var(--ink); }
+  .dot.pending { background: transparent; border: 1.4px solid var(--ink); }
+  .dot.cancel { background: var(--ink-faint); opacity:.6; }
+
+  .legend { display:flex; gap:16px; margin-top:14px; font-size:.76rem; color:var(--ink-soft); flex-wrap:wrap; }
+  .legend span { display:flex; align-items:center; gap:5px; }
+  .legend .dot { width:7px; height:7px; }
+
+  .fab {
+    position: fixed; bottom: 96px; right: calc(50% - 240px + 20px); z-index: 25;
+    background: var(--accent-strong); color:var(--bg); border:none; border-radius: 50%; width:54px; height:54px;
+    display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  }
+  .fab svg { width:22px; height:22px; }
+  @media (max-width: 520px) { .fab { right: 20px; } }
+
+  /* ---- Bottom sheet ---- */
+  .sheet-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:flex-end; justify-content:center; z-index:60; }
+  .sheet-overlay.active { display:flex; }
+  .sheet {
+    background: var(--surface); width:100%; max-width:480px; border-radius: 20px 20px 0 0; padding: 10px 20px calc(24px + env(safe-area-inset-bottom,0px));
+    max-height: 80vh; overflow-y:auto; animation: slideup .2s ease-out;
+  }
+  @keyframes slideup { from{transform:translateY(20px); opacity:0} to{transform:translateY(0); opacity:1} }
+  .sheet-handle { width:38px; height:4px; background:var(--line); border-radius:4px; margin: 6px auto 16px; }
+  .sheet h3 { font-size: 1.1rem; margin-bottom: 4px; }
+  .sheet .sheet-sub { font-size:.82rem; color:var(--ink-faint); margin-bottom:16px; }
+
+  /* ---- Cards / list items ---- */
+  .b-card { background: var(--surface); border:1px solid var(--line); border-radius: var(--radius-m); padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:border-color .15s; }
+  .b-card:hover { border-color: var(--ink-faint); }
+  .b-top { display:flex; justify-content:space-between; align-items:start; gap:10px; margin-bottom:8px; }
+  .b-name { font-weight:700; font-size:.94rem; }
+  .b-date { font-size:.78rem; color:var(--ink-faint); }
+  .b-meta { display:flex; gap:10px; font-size:.8rem; color:var(--ink-soft); flex-wrap:wrap; margin-bottom:4px; align-items:center; }
+  .tag { font-size:.72rem; padding:3px 9px; border-radius:100px; font-weight:600; white-space:nowrap; }
+  .tag.ok { background: var(--ink); color: var(--bg); }
+  .tag.pending { background: var(--bg); color: var(--ink); border:1px solid var(--ink); }
+  .tag.cancel { background: var(--surface-alt); color: var(--ink-faint); text-decoration: line-through; }
+  .tag.src { background: var(--surface-alt); color: var(--ink-soft); }
+  .b-actions { display:flex; gap:8px; margin-top:10px; }
+  .btn-sm { flex:1; border-radius: var(--radius-s); padding:9px; font-size:.84rem; font-weight:700; border:1px solid var(--line); background:var(--surface); }
+  .btn-sm.accept { background: var(--accent-strong); color:var(--bg); border:none; }
+  .btn-sm.reject { color: var(--ink-soft); }
+  .empty-state { text-align:center; padding: 50px 20px; color: var(--ink-faint); }
+  .empty-state svg { width:38px; height:38px; margin-bottom:10px; opacity:.5; }
+
+  .pay-bar-wrap { margin-top:8px; }
+  .pay-bar-track { height:5px; border-radius:4px; background: var(--surface-alt); overflow:hidden; }
+  .pay-bar-fill { height:100%; background: var(--ink); border-radius:4px; }
+  .pay-bar-label { display:flex; justify-content:space-between; font-size:.74rem; color:var(--ink-faint); margin-top:4px; }
+
+  .badge-count { background: var(--accent-strong); color:var(--bg); font-size:.66rem; min-width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+
+  .filter-chips { display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; }
+  .f-chip { flex:none; border:1px solid var(--line); background:var(--surface); border-radius:100px; padding:7px 14px; font-size:.82rem; color:var(--ink-soft); }
+  .f-chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  /* ---- Forms ---- */
+  .form-row { margin-bottom: 14px; display:flex; flex-direction:column; gap:5px; }
+  .form-row label { font-size:.78rem; color:var(--ink-faint); }
+  .form-row input, .form-row textarea, .form-row select {
+    border:1px solid var(--line); border-radius: var(--radius-s); padding:11px 13px; font-size:.92rem; background:var(--bg); color:var(--ink); outline:none;
+  }
+  .form-row input:focus, .form-row textarea:focus, .form-row select:focus { outline:2px solid var(--ink); outline-offset:1px; }
+  .form-row textarea { resize:vertical; min-height:70px; font-family:inherit; }
+  .btn-primary { width:100%; background:var(--accent-strong); color:var(--bg); border:none; border-radius:var(--radius-s); padding:13px; font-size:.94rem; font-weight:700; }
+  .btn-primary:hover { opacity:.88; }
+  .btn-outline-full { width:100%; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:var(--radius-s); padding:13px; font-size:.94rem; font-weight:700; margin-top:10px; }
+
+  /* ---- More menu ---- */
+  .menu-item { display:flex; align-items:center; gap:14px; padding:15px 4px; border-bottom:1px solid var(--line); background:none; border-left:none;border-right:none;border-top:none; width:100%; text-align:left; }
+  .menu-item .m-icon { width:38px; height:38px; border-radius:10px; background:var(--surface-alt); display:flex; align-items:center; justify-content:center; flex:none; color:var(--ink); }
+  .menu-item .m-icon svg { width:17px; height:17px; }
+  .menu-item .m-text { flex:1; }
+  .menu-item .m-title { font-size:.92rem; font-weight:600; }
+  .menu-item .m-sub { font-size:.76rem; color:var(--ink-faint); }
+  .menu-item svg.chev { width:14px; height:14px; color:var(--ink-faint); }
+
+  .sub-header { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+  .sub-header button { background:var(--surface-alt); border:1px solid var(--line); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .sub-header button svg { width:14px; height:14px; }
+
+  .svc-check { display:flex; align-items:center; gap:9px; padding:9px 0; font-size:.9rem; border-bottom:1px solid var(--line); }
+  .svc-check input { accent-color: var(--ink); width:16px; height:16px; }
+
+  .review-card { border:1px solid var(--line); border-radius:var(--radius-m); padding:14px 16px; margin-bottom:12px; }
+  .review-top { display:flex; justify-content:space-between; margin-bottom:6px; font-size:.86rem; }
+  .review-name { font-weight:700; }
+  .stars svg { width:11px; height:11px; fill: var(--ink); }
+  .review-text { font-size:.86rem; color:var(--ink-soft); margin-bottom:10px; }
+  .reply-box { background:var(--surface-alt); border-radius:var(--radius-s); padding:10px 12px; font-size:.82rem; }
+  .reply-box.pending textarea { width:100%; border:1px solid var(--line); border-radius:var(--radius-s); padding:9px; font-size:.85rem; background:var(--bg); margin-bottom:8px; font-family:inherit; resize:vertical; min-height:50px;}
+  .reply-send { background:var(--accent-strong); color:var(--bg); border:none; border-radius:var(--radius-s); padding:8px 14px; font-size:.82rem; font-weight:700; }
+  .reply-label { font-size:.72rem; color:var(--ink-faint); margin-bottom:4px; font-weight:700; }
+
+  .team-card { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .team-avatar { width:38px; height:38px; border-radius:50%; background:var(--surface-alt); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.85rem; color:var(--ink-soft); flex:none; }
+  .team-name { font-size:.9rem; font-weight:600; }
+  .team-role { font-size:.76rem; color:var(--ink-faint); }
+
+  .toast {
+    position: fixed; bottom: 100px; left:50%; transform: translateX(-50%) translateY(20px); opacity:0;
+    background: var(--accent-strong); color: var(--bg); font-size:.85rem; padding:11px 20px; border-radius:100px; z-index:80; transition: all .25s; pointer-events:none;
+  }
+  .toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
+
+  /* ---- Bottom nav ---- */
+  .bottom-nav {
+    position: fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; background:var(--bg);
+    border-top:1px solid var(--line); display:flex; z-index:20; padding-bottom: env(safe-area-inset-bottom,0px);
+  }
+  .nav-btn { flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:4px; padding:11px 4px 9px; color: var(--ink-faint); position:relative; }
+  .nav-btn svg { width:20px; height:20px; }
+  .nav-btn span { font-size:.68rem; font-weight:600; }
+  .nav-btn.active { color: var(--ink); }
+  .nav-badge { position:absolute; top:6px; right: calc(50% - 18px); background:var(--accent-strong); color:var(--bg); font-size:.6rem; min-width:14px; height:14px; border-radius:50%; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:70; padding:20px; }
+  .modal-overlay.active { display:flex; }
+  .modal-box { background:var(--surface); border-radius: var(--radius-l); max-width:400px; width:100%; padding:22px; }
+  .modal-box h3 { margin-bottom:14px; font-size:1.05rem; }
+
+  /* ---- Notifications ---- */
+  .notif-item { border-radius: var(--radius-m); padding:13px 14px; margin-bottom:10px; border:1px solid var(--line); }
+  .notif-item.lvl-5 { background: var(--surface); }
+  .notif-item.lvl-1 { background: var(--surface-alt); border-color: var(--ink-faint); }
+  .notif-item.lvl-0 { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .notif-item.lvl-0 .notif-sub { color: #C9C9C4; }
+  .notif-top { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .notif-tag { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em; padding:2px 8px; border-radius:100px; background: var(--surface-alt); color: var(--ink-soft); }
+  .notif-item.lvl-0 .notif-tag { background: var(--bg); color: var(--ink); }
+  .notif-title { font-weight:700; font-size:.9rem; }
+  .notif-sub { font-size:.8rem; color: var(--ink-faint); }
+
+  /* ---- Toggle switch ---- */
+  .switch-row { display:flex; align-items:center; justify-content:space-between; padding: 14px 0; border-bottom:1px solid var(--line); }
+  .switch-row .st-title { font-size:.9rem; font-weight:600; }
+  .switch-row .st-sub { font-size:.76rem; color:var(--ink-faint); margin-top:2px; }
+  .switch { position:relative; width:42px; height:25px; flex:none; }
+  .switch input { opacity:0; width:0; height:0; }
+  .switch-track { position:absolute; inset:0; background: var(--line); border-radius:100px; transition:.2s; cursor:pointer; }
+  .switch-track:before { content:""; position:absolute; width:19px; height:19px; left:3px; top:3px; background:var(--surface); border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .switch input:checked + .switch-track { background: var(--ink); }
+  .switch input:checked + .switch-track:before { transform: translateX(17px); }
+
+  .detail-field { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line); gap:14px; }
+  .detail-field .df-label { font-size:.82rem; color:var(--ink-faint); flex:none; }
+  .detail-field .df-value { font-size:.9rem; font-weight:600; text-align:right; }
+  .detail-status-row { display:flex; gap:10px; margin:18px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="venue">
+      <div class="venue-avatar">B</div>
+      <div>
+        <div class="venue-name">Bog'i Zebo saroyi</div>
+        <div class="venue-role">Administrator</div>
+      </div>
+    </div>
+    <button class="topbar-icon" id="bell-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+      <span class="icon-badge" id="bell-badge" style="display:none">0</span>
+    </button>
+  </div>
+
+  <main>
+
+    <!-- ================= KALENDAR ================= -->
+    <section class="view active" data-view="kalendar">
+      <div class="page-title">Taqvim</div>
+      <div class="page-sub">Bandlik holatini kunlar bo'yicha ko'ring</div>
+
+      <div class="month-nav">
+        <button id="cal-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <h2 id="cal-month-label"></h2>
+        <button id="cal-next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+
+      <div class="weekday-row"><span>Du</span><span>Se</span><span>Ch</span><span>Pa</span><span>Ju</span><span>Sh</span><span>Ya</span></div>
+      <div class="cal-grid" id="cal-grid"></div>
+
+      <div class="legend">
+        <span><span class="dot ok"></span>Tasdiqlangan</span>
+        <span><span class="dot pending"></span>Kutilmoqda</span>
+        <span><span class="dot cancel"></span>Bekor qilingan</span>
+      </div>
+    </section>
+
+    <!-- ================= SO'ROVLAR ================= -->
+    <section class="view" data-view="sorovlar">
+      <div class="page-title">Yangi so'rovlar</div>
+      <div class="page-sub">Platformadan kelgan bron so'rovlari, tasdiqlashingiz kerak</div>
+      <div id="requests-list"></div>
+    </section>
+
+    <!-- ================= BRONLAR ================= -->
+    <section class="view" data-view="bronlar">
+      <div class="page-title">Barcha bronlar</div>
+      <div class="page-sub">Platforma va qo'lda kiritilgan bronlar</div>
+      <div class="filter-chips" id="booking-filters">
+        <div class="f-chip active" data-f="all">Barchasi</div>
+        <div class="f-chip" data-f="Tasdiqlangan">Tasdiqlangan</div>
+        <div class="f-chip" data-f="Kutilmoqda">Kutilmoqda</div>
+        <div class="f-chip" data-f="Bekor qilingan">Bekor qilingan</div>
+      </div>
+      <div id="bookings-list"></div>
+    </section>
+
+    <!-- ================= BRON DETAIL (to'liq) ================= -->
+    <section class="view" data-view="bron-detail">
+      <div class="sub-header">
+        <button id="detail-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <h2 style="font-size:1.2rem">Bron tafsilotlari</h2>
+      </div>
+      <div id="detail-body"></div>
+    </section>
+
+    <!-- ================= KO'PROQ (asosiy menyu) ================= -->
+    <section class="view" data-view="koproq">
+      <div class="page-title">Ko'proq</div>
+      <div class="page-sub">Sozlamalar va qo'shimcha bo'limlar</div>
+
+      <button class="menu-item" data-goto="profil">
+        <div class="m-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M14 9h1M14 13h1"/></svg></div>
+        <div class="m-text"><div class="m-title">To'yxona profili</div><div class="m-sub">Narx, sig'im, xizmatlar, rasmlar</div></div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <button class="menu-item" data-goto="sharhlar">
+        <div class="m-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.1 6.3 7 1-5 4.9 1.2 6.9-6.3-3.3-6.3 3.3 1.2-6.9-5-4.9 7-1z"/></svg></div>
+        <div class="m-text"><div class="m-title">Sharhlar</div><div class="m-sub">Mijozlar fikriga javob bering</div></div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <button class="menu-item" data-goto="jamoa">
+        <div class="m-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 20v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 20v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+        <div class="m-text"><div class="m-title">Jamoa</div><div class="m-sub">Xodimlarga kirish huquqi berish</div></div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <button class="menu-item" data-goto="ogohlantirish">
+        <div class="m-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        <div class="m-text"><div class="m-title">Ogohlantirish sozlamalari</div><div class="m-sub">Eslatmalar qachon kelishini belgilang</div></div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <button class="menu-item" style="color:var(--ink-soft)">
+        <div class="m-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></div>
+        <div class="m-text"><div class="m-title">Chiqish</div></div>
+      </button>
+    </section>
+
+    <!-- ================= PROFIL ================= -->
+    <section class="view" data-view="profil">
+      <div class="sub-header">
+        <button data-back="koproq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <h2 style="font-size:1.2rem">To'yxona profili</h2>
+      </div>
+      <div class="form-row"><label>Nomi</label><input type="text" value="Bog'i Zebo saroyi"></div>
+      <div class="form-row"><label>Manzil</label><input type="text" value="Chilonzor tumani, Toshkent shahar"></div>
+      <div class="form-row"><label>1 kishi uchun narx (so'm)</label><input type="number" value="220000"></div>
+      <div class="form-row"><label>Sig'im (kishi)</label><input type="number" value="400"></div>
+      <div class="form-row"><label>Minimal zakat (so'm)</label><input type="number" value="8000000"></div>
+      <div class="form-row"><label>Tavsif</label><textarea>Chilonzor tumani markazida joylashgan, 400 kishigacha mehmon sig'diradigan zamonaviy to'yxona.</textarea></div>
+      <div class="form-row">
+        <label>Xizmatlar</label>
+        <div class="svc-check"><input type="checkbox" checked><span>Parking</span></div>
+        <div class="svc-check"><input type="checkbox" checked><span>Kelin xonasi</span></div>
+        <div class="svc-check"><input type="checkbox" checked><span>Live musiqa</span></div>
+        <div class="svc-check"><input type="checkbox"><span>Dekor xizmati</span></div>
+        <div class="svc-check"><input type="checkbox" checked><span>Bolalar xonasi</span></div>
+      </div>
+      <div class="form-row">
+        <label>Rasmlar</label>
+        <button class="btn-outline-full" id="btn-upload" style="border-style:dashed;margin-top:0">+ Rasm qo'shish</button>
+      </div>
+      <button class="btn-primary" id="btn-save-profile">Saqlash</button>
+    </section>
+
+    <!-- ================= SHARHLAR ================= -->
+    <section class="view" data-view="sharhlar">
+      <div class="sub-header">
+        <button data-back="koproq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <h2 style="font-size:1.2rem">Sharhlar</h2>
+      </div>
+      <div id="reviews-list"></div>
+    </section>
+
+    <!-- ================= JAMOA ================= -->
+    <section class="view" data-view="jamoa">
+      <div class="sub-header">
+        <button data-back="koproq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <h2 style="font-size:1.2rem">Jamoa</h2>
+      </div>
+      <div id="team-list"></div>
+      <button class="btn-primary" id="btn-add-team" style="margin-top:8px">+ Xodim qo'shish</button>
+    </section>
+
+    <!-- ================= OGOHLANTIRISH SOZLAMALARI ================= -->
+    <section class="view" data-view="ogohlantirish">
+      <div class="sub-header">
+        <button data-back="koproq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <h2 style="font-size:1.2rem">Ogohlantirish sozlamalari</h2>
+      </div>
+
+      <div class="switch-row">
+        <div><div class="st-title">Eslatmalarni yoqish</div><div class="st-sub">Barcha bron eslatmalarini yoqish/o'chirish</div></div>
+        <label class="switch"><input type="checkbox" id="rs-enabled" checked><span class="switch-track"></span></label>
+      </div>
+
+      <div class="form-row" style="margin-top:18px">
+        <label>Birinchi eslatma — necha kun oldin</label>
+        <input type="number" id="rs-stage1" value="5" min="1" max="30">
+      </div>
+      <div class="form-row">
+        <label>Ikkinchi eslatma — necha kun oldin</label>
+        <input type="number" id="rs-stage2" value="1" min="1" max="30">
+      </div>
+
+      <div class="switch-row">
+        <div><div class="st-title">Bron kuni ertalab eslatma</div><div class="st-sub">To'y bo'ladigan kuni ertalab alohida ogohlantirish</div></div>
+        <label class="switch"><input type="checkbox" id="rs-dayof" checked><span class="switch-track"></span></label>
+      </div>
+
+      <button class="btn-primary" id="rs-save" style="margin-top:20px">Saqlash</button>
+    </section>
+
+  </main>
+
+  <button class="fab" id="fab-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 5v14M5 12h14"/></svg></button>
+
+  <div class="bottom-nav">
+    <button class="nav-btn active" data-view="kalendar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+      <span>Taqvim</span>
+    </button>
+    <button class="nav-btn" data-view="sorovlar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
+      <span>So'rovlar</span>
+      <span class="nav-badge" id="nav-badge">0</span>
+    </button>
+    <button class="nav-btn" data-view="bronlar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      <span>Bronlar</span>
+    </button>
+    <button class="nav-btn" data-view="koproq">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <span>Ko'proq</span>
+    </button>
+  </div>
+</div>
+
+<!-- Day detail sheet -->
+<div class="sheet-overlay" id="day-sheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3 id="sheet-date-title"></h3>
+    <p class="sheet-sub" id="sheet-date-sub"></p>
+    <div id="sheet-bookings"></div>
+    <button class="btn-primary" id="sheet-add-btn">+ Tezkor bron qo'shish</button>
+  </div>
+</div>
+
+<!-- Notifications sheet -->
+<div class="sheet-overlay" id="notif-sheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>Ogohlantirishlar</h3>
+    <p class="sheet-sub">Yaqinlashib kelayotgan to'ylar haqida eslatmalar</p>
+    <div id="notif-list"></div>
+  </div>
+</div>
+
+<!-- Quick add modal -->
+<div class="modal-overlay" id="quick-add-modal">
+  <div class="modal-box">
+    <h3>Tezkor bron qo'shish</h3>
+    <div class="form-row"><label>Sana</label><input type="date" id="qa-date"></div>
+    <div class="form-row"><label>Ism familiya</label><input type="text" id="qa-name" placeholder="Ism Familiya"></div>
+    <div class="form-row"><label>Telefon raqam</label><input type="tel" id="qa-phone" placeholder="+998 90 123 45 67"></div>
+    <button class="btn-primary" id="qa-save">Saqlash</button>
+  </div>
+</div>
+
+<!-- Add team modal -->
+<div class="modal-overlay" id="team-modal">
+  <div class="modal-box">
+    <h3>Xodim qo'shish</h3>
+    <div class="form-row"><label>Telefon raqam</label><input type="tel" id="tm-phone" placeholder="+998 90 123 45 67"></div>
+    <div class="form-row"><label>Roli</label>
+      <select id="tm-role"><option>Menejer</option><option>Administrator</option></select>
+    </div>
+    <button class="btn-primary" id="tm-save">Taklif yuborish</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= Mock data ================= */
+const today = new Date(); today.setHours(0,0,0,0);
+function dOffset(n){ const d = new Date(today); d.setDate(d.getDate()+n); return d; }
+function iso(d){ return d.toISOString().slice(0,10); }
+function fmt(n){ return n===null || n===undefined ? '—' : n.toLocaleString('ru-RU').replace(/,/g,' '); }
+
+let nextId = 11;
+let bookings = [
+  { id:1, date: dOffset(2),  name:"Bahodir & Nilufar", phone:"+998 90 111 22 33", mehmon:320, manba:"Qo'lda",    status:"Tasdiqlangan", total:10000000, paid:10000000, notes:"" },
+  { id:2, date: dOffset(5),  name:"Sardor & Malika",   phone:"+998 93 333 22 11", mehmon:200, manba:"Platforma", status:"Tasdiqlangan", total:8000000,  paid:4000000,  notes:"Kelin tomoni VIP mehmon, alohida stol so'ralgan." },
+  { id:3, date: dOffset(9),  name:"Jasur & Zarina",    phone:"+998 97 123 45 67", mehmon:450, manba:"Qo'lda",    status:"Tasdiqlangan", total:12000000, paid:12000000, notes:"" },
+  { id:4, date: dOffset(14), name:"Dilshod Aliyev",    phone:"+998 90 123 45 67", mehmon:280, manba:"Platforma", status:"Kutilmoqda",   total:9000000,  paid:0,        notes:"" },
+  { id:5, date: dOffset(20), name:"Kamola Yusupova",   phone:"+998 93 345 67 89", mehmon:150, manba:"Platforma", status:"Kutilmoqda",   total:6000000,  paid:0,        notes:"" },
+  { id:6, date: dOffset(23), name:"Otabek & Sevinch",  phone:"+998 97 777 88 99", mehmon:600, manba:"Qo'lda",    status:"Tasdiqlangan", total:15000000, paid:7500000,  notes:"" },
+  { id:7, date: dOffset(33), name:"Aziz Rahimov",      phone:"+998 97 112 23 34", mehmon:400, manba:"Platforma", status:"Kutilmoqda",   total:11000000, paid:0,        notes:"" },
+  { id:8, date: dOffset(-4), name:"Farrux & Kamola",   phone:"+998 90 000 11 22", mehmon:250, manba:"Qo'lda",    status:"Bekor qilingan", total:8000000, paid:2000000,  notes:"Mijoz sababsiz bekor qildi." },
+  { id:9, date: dOffset(1),  name:"G'ayrat & Shahzoda",phone:"+998 90 555 44 33", mehmon:380, manba:"Platforma", status:"Tasdiqlangan", total:9000000,  paid:9000000,  notes:"" },
+  { id:10,date: dOffset(0),  name:"Islom & Madina",    phone:"+998 93 222 11 00", mehmon:220, manba:"Qo'lda",    status:"Tasdiqlangan", total:7000000,  paid:3500000,  notes:"" },
+];
+
+let reviews = [
+  { name:"Dilnoza R.", stars:5, text:"Zal juda toza va xizmat a'lo darajada edi.", reply:null },
+  { name:"Sardor Q.", stars:4, text:"Narxi mos, lekin parkovka biroz tor edi.", reply:"Fikringiz uchun rahmat! Parkovka joyini kengaytirish ustida ishlayapmiz." },
+  { name:"Kamola T.", stars:5, text:"Mehmonlarimiz juda mamnun bo'lishdi, rahmat!", reply:null },
+];
+
+let team = [
+  { name:"Siz", role:"Administrator", you:true },
+  { name:"Nodira Ergasheva", role:"Menejer" },
+];
+
+let reminderSettings = { enabled:true, stage1:5, stage2:1, dayOf:true };
+let lastView = 'kalendar';
+let detailFrom = 'kalendar';
+
+/* ================= Navigation ================= */
+function showView(name, opts){
+  opts = opts || {};
+  if(!opts.isDetail && name !== 'bron-detail'){ lastView = name; }
+  document.querySelectorAll('.view').forEach(v=> v.classList.toggle('active', v.dataset.view===name));
+  document.querySelectorAll('.nav-btn').forEach(b=> b.classList.toggle('active', b.dataset.view===name));
+  document.getElementById('fab-add').style.display = (name==='kalendar') ? 'flex' : 'none';
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.nav-btn').forEach(b=> b.addEventListener('click', ()=> showView(b.dataset.view)));
+document.querySelectorAll('[data-goto]').forEach(b=> b.addEventListener('click', ()=> showView(b.dataset.goto)));
+document.querySelectorAll('[data-back]').forEach(b=> b.addEventListener('click', ()=> showView(b.dataset.back)));
+document.getElementById('detail-back-btn').addEventListener('click', ()=> showView(detailFrom));
+
+function toast(msg){
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+/* ================= Calendar ================= */
+let calMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+const MONTHS = ["Yanvar","Fevral","Mart","Aprel","May","Iyun","Iyul","Avgust","Sentabr","Oktabr","Noyabr","Dekabr"];
+
+function bookingsOn(dateStr){ return bookings.filter(b=> iso(b.date)===dateStr); }
+
+function renderCalendar(){
+  document.getElementById('cal-month-label').textContent = MONTHS[calMonth.getMonth()] + " " + calMonth.getFullYear();
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  const firstDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
+  let startOffset = firstDay.getDay() - 1; if(startOffset < 0) startOffset = 6;
+  const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 0).getDate();
+  const daysInPrevMonth = new Date(calMonth.getFullYear(), calMonth.getMonth(), 0).getDate();
+
+  const cells = [];
+  for(let i=startOffset; i>0; i--) cells.push({day: daysInPrevMonth-i+1, dim:true, date:null});
+  for(let d=1; d<=daysInMonth; d++) cells.push({day:d, dim:false, date:new Date(calMonth.getFullYear(), calMonth.getMonth(), d)});
+  while(cells.length % 7 !== 0) cells.push({day: cells.length, dim:true, date:null});
+
+  cells.forEach(c=>{
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell' + (c.dim ? ' dim' : '');
+    let dotsHtml = '';
+    if(c.date){
+      const ds = iso(c.date);
+      if(iso(today)===ds) cell.classList.add('today');
+      const list = bookingsOn(ds);
+      const statuses = new Set(list.map(b=>b.status));
+      if(statuses.has('Tasdiqlangan')) dotsHtml += '<span class="dot ok"></span>';
+      if(statuses.has('Kutilmoqda')) dotsHtml += '<span class="dot pending"></span>';
+      if(statuses.has('Bekor qilingan')) dotsHtml += '<span class="dot cancel"></span>';
+      cell.addEventListener('click', ()=> openDaySheet(ds));
+    }
+    cell.innerHTML = `<span>${c.day}</span><span class="dots">${dotsHtml}</span>`;
+    grid.appendChild(cell);
+  });
+}
+document.getElementById('cal-prev').addEventListener('click', ()=>{ calMonth.setMonth(calMonth.getMonth()-1); renderCalendar(); });
+document.getElementById('cal-next').addEventListener('click', ()=>{ calMonth.setMonth(calMonth.getMonth()+1); renderCalendar(); });
+
+/* ================= Day sheet ================= */
+let sheetDate = null;
+function openDaySheet(ds){
+  sheetDate = ds;
+  const d = new Date(ds);
+  document.getElementById('sheet-date-title').textContent = d.toLocaleDateString('uz-UZ',{day:'numeric', month:'long', year:'numeric'});
+  const list = bookingsOn(ds);
+  document.getElementById('sheet-date-sub').textContent = list.length ? list.length + " ta bron" : "Bu kun uchun bron yo'q";
+  document.getElementById('sheet-bookings').innerHTML = list.length ? list.map(b=>bookingCardHTML(b)).join('') : '';
+  document.getElementById('day-sheet').classList.add('active');
+}
+document.getElementById('day-sheet').addEventListener('click', e=>{ if(e.target.id==='day-sheet') document.getElementById('day-sheet').classList.remove('active'); });
+document.getElementById('sheet-add-btn').addEventListener('click', ()=>{
+  document.getElementById('day-sheet').classList.remove('active');
+  openQuickAdd(sheetDate);
+});
+document.getElementById('fab-add').addEventListener('click', ()=> openQuickAdd(null));
+
+/* ================= Booking card renderer ================= */
+function statusTagClass(s){ return s==='Tasdiqlangan' ? 'ok' : (s==='Kutilmoqda' ? 'pending' : 'cancel'); }
+function paymentBarHTML(b){
+  if(b.total === null || b.total === undefined) return `<div class="pay-bar-label" style="margin-top:6px"><span>To'lov ma'lumoti kiritilmagan</span></div>`;
+  const pct = b.total > 0 ? Math.round((b.paid / b.total) * 100) : 0;
+  return `<div class="pay-bar-wrap">
+    <div class="pay-bar-track"><div class="pay-bar-fill" style="width:${pct}%"></div></div>
+    <div class="pay-bar-label"><span>${pct}% to'langan — ${fmt(b.paid)} so'm</span><span>Qoldiq: ${fmt(b.total-b.paid)} so'm</span></div>
+  </div>`;
+}
+function bookingCardHTML(b){
+  return `<div class="b-card" onclick="openBookingDetail(${b.id})">
+    <div class="b-top">
+      <div><div class="b-name">${b.name}</div><div class="b-date">${b.phone}</div></div>
+      <span class="tag ${statusTagClass(b.status)}">${b.status}</span>
+    </div>
+    <div class="b-meta">
+      <span>${iso(b.date)}</span><span>·</span><span>${b.mehmon===null?'—':b.mehmon} mehmon</span>
+      <span class="tag src">${b.manba}</span>
+    </div>
+    ${paymentBarHTML(b)}
+  </div>`;
+}
+
+/* ================= So'rovlar (pending platform requests) ================= */
+function renderRequests(){
+  const pending = bookings.filter(b=> b.status==='Kutilmoqda' && b.manba==='Platforma');
+  document.getElementById('nav-badge').textContent = pending.length;
+  document.getElementById('nav-badge').style.display = pending.length ? 'flex' : 'none';
+  const wrap = document.getElementById('requests-list');
+  if(!pending.length){
+    wrap.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/></svg><div>Hozircha yangi so'rov yo'q</div></div>`;
+    return;
+  }
+  wrap.innerHTML = pending.map(b=>`
+    <div class="b-card" onclick="openBookingDetail(${b.id})">
+      <div class="b-top">
+        <div><div class="b-name">${b.name}</div><div class="b-date">${b.phone}</div></div>
+        <span class="tag pending">Kutilmoqda</span>
+      </div>
+      <div class="b-meta"><span>${iso(b.date)}</span><span>·</span><span>${b.mehmon} mehmon</span></div>
+      <div class="b-actions">
+        <button class="btn-sm accept" onclick="event.stopPropagation(); respondRequest(${b.id}, true)">Qabul qilish</button>
+        <button class="btn-sm reject" onclick="event.stopPropagation(); respondRequest(${b.id}, false)">Rad etish</button>
+      </div>
+    </div>`).join('');
+}
+function respondRequest(id, accept){
+  const b = bookings.find(x=> x.id===id);
+  if(b){ b.status = accept ? 'Tasdiqlangan' : 'Bekor qilingan'; }
+  toast(accept ? "Bron tasdiqlandi" : "So'rov rad etildi");
+  renderAll();
+}
+
+/* ================= Bronlar (all) ================= */
+let bookingFilter = 'all';
+function renderBookings(){
+  const list = bookings.filter(b=> bookingFilter==='all' || b.status===bookingFilter)
+                        .slice().sort((a,b)=> a.date-b.date);
+  const wrap = document.getElementById('bookings-list');
+  wrap.innerHTML = list.length ? list.map(b=>bookingCardHTML(b)).join('') :
+    `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/></svg><div>Bu bo'limda bron topilmadi</div></div>`;
+}
+document.querySelectorAll('#booking-filters .f-chip').forEach(chip=>{
+  chip.addEventListener('click', function(){
+    document.querySelectorAll('#booking-filters .f-chip').forEach(c=>c.classList.remove('active'));
+    this.classList.add('active'); bookingFilter = this.dataset.f; renderBookings();
+  });
+});
+
+/* ================= Booking full detail ================= */
+function openBookingDetail(id){
+  const b = bookings.find(x=> x.id===id);
+  if(!b) return;
+  detailFrom = lastView;
+  const d = new Date(b.date);
+  const hasPay = b.total !== null && b.total !== undefined;
+  const pct = hasPay && b.total>0 ? Math.round((b.paid/b.total)*100) : 0;
+
+  let actionsHtml = '';
+  if(b.status === 'Kutilmoqda'){
+    actionsHtml = `<div class="detail-status-row">
+      <button class="btn-primary" style="margin:0" onclick="detailRespond(${b.id}, true)">Tasdiqlash</button>
+      <button class="btn-outline-full" style="margin:0" onclick="detailRespond(${b.id}, false)">Rad etish</button>
+    </div>`;
+  } else if(b.status === 'Tasdiqlangan'){
+    actionsHtml = `<button class="btn-outline-full" onclick="detailRespond(${b.id}, false)">Bronni bekor qilish</button>`;
+  }
+
+  document.getElementById('detail-body').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h2 style="font-size:1.3rem">${b.name}</h2>
+      <span class="tag ${statusTagClass(b.status)}">${b.status}</span>
+    </div>
+    <p style="color:var(--ink-faint);font-size:.85rem;margin:0 0 18px">Bron raqami: TX-${String(b.id).padStart(4,'0')}</p>
+
+    <div class="detail-field"><span class="df-label">To'y sanasi</span><span class="df-value">${d.toLocaleDateString('uz-UZ',{day:'numeric', month:'long', year:'numeric'})}</span></div>
+    <div class="detail-field"><span class="df-label">Telefon raqam</span><span class="df-value">${b.phone}</span></div>
+    <div class="detail-field"><span class="df-label">Mehmonlar soni</span><span class="df-value">${b.mehmon===null?'Kiritilmagan':b.mehmon+' kishi'}</span></div>
+    <div class="detail-field"><span class="df-label">Manba</span><span class="df-value">${b.manba}</span></div>
+
+    <div style="margin-top:20px">
+      <div class="df-label" style="margin-bottom:8px">To'lov holati</div>
+      ${hasPay ? `
+        <div class="pay-bar-track"><div class="pay-bar-fill" style="width:${pct}%"></div></div>
+        <div class="pay-bar-label" style="margin-top:6px">
+          <span>${pct}% to'langan</span><span>${fmt(b.paid)} / ${fmt(b.total)} so'm</span>
+        </div>
+        <div class="pay-bar-label"><span>Qolgan summa</span><span>${fmt(b.total-b.paid)} so'm</span></div>
+      ` : `<p style="font-size:.85rem;color:var(--ink-faint)">To'lov ma'lumoti kiritilmagan (tezkor bron orqali qo'shilgan).</p>`}
+    </div>
+
+    <div style="margin-top:20px">
+      <div class="df-label" style="margin-bottom:8px">Izoh</div>
+      <p style="font-size:.88rem;color:var(--ink-soft);margin:0">${b.notes ? b.notes : "Izoh kiritilmagan."}</p>
+    </div>
+
+    ${actionsHtml}
+  `;
+  showView('bron-detail', {isDetail:true});
+}
+function detailRespond(id, accept){
+  const b = bookings.find(x=> x.id===id);
+  if(b){ b.status = accept ? 'Tasdiqlangan' : 'Bekor qilingan'; }
+  toast(accept ? "Bron tasdiqlandi" : "Bron bekor qilindi");
+  renderAll();
+  openBookingDetail(id);
+}
+
+/* ================= Quick add ================= */
+function openQuickAdd(ds){
+  document.getElementById('qa-date').value = ds || iso(dOffset(1));
+  document.getElementById('qa-name').value = '';
+  document.getElementById('qa-phone').value = '';
+  document.getElementById('quick-add-modal').classList.add('active');
+}
+document.getElementById('qa-save').addEventListener('click', ()=>{
+  const dateVal = document.getElementById('qa-date').value;
+  const name = document.getElementById('qa-name').value.trim();
+  const phone = document.getElementById('qa-phone').value.trim();
+  if(!dateVal || !name || !phone){ alert("Iltimos, barcha maydonlarni to'ldiring."); return; }
+  bookings.push({ id: nextId++, date: new Date(dateVal), name, phone, mehmon: null, manba:"Qo'lda", status:"Tasdiqlangan", total:null, paid:null, notes:"" });
+  document.getElementById('quick-add-modal').classList.remove('active');
+  toast("Bron qo'shildi");
+  renderAll();
+});
+document.getElementById('quick-add-modal').addEventListener('click', e=>{ if(e.target.id==='quick-add-modal') e.currentTarget.classList.remove('active'); });
+
+/* ================= Profile ================= */
+document.getElementById('btn-save-profile').addEventListener('click', ()=> toast("Ma'lumotlar saqlandi"));
+document.getElementById('btn-upload').addEventListener('click', ()=> toast("Rasm yuklandi (demo)"));
+
+/* ================= Reviews ================= */
+function starSVG(){ return '<svg viewBox="0 0 24 24"><path d="M12 2l3.1 6.3 7 1-5 4.9 1.2 6.9-6.3-3.3-6.3 3.3 1.2-6.9-5-4.9 7-1z"/></svg>'; }
+function renderReviews(){
+  document.getElementById('reviews-list').innerHTML = reviews.map((r,i)=>`
+    <div class="review-card">
+      <div class="review-top"><span class="review-name">${r.name}</span><span class="stars">${starSVG().repeat(r.stars)}</span></div>
+      <div class="review-text">${r.text}</div>
+      ${r.reply ? `<div class="reply-box"><div class="reply-label">Sizning javobingiz</div>${r.reply}</div>`
+                 : `<div class="reply-box pending"><div class="reply-label">Javob yozish</div>
+                      <textarea id="reply-input-${i}" placeholder="Mijozga javob yozing..."></textarea>
+                      <button class="reply-send" onclick="sendReply(${i})">Yuborish</button></div>`}
+    </div>`).join('');
+}
+function sendReply(i){
+  const val = document.getElementById('reply-input-'+i).value.trim();
+  if(!val){ return; }
+  reviews[i].reply = val; renderReviews(); toast("Javob yuborildi");
+}
+
+/* ================= Team ================= */
+function renderTeam(){
+  document.getElementById('team-list').innerHTML = team.map(t=>`
+    <div class="team-card">
+      <div class="team-avatar">${t.name.charAt(0)}</div>
+      <div style="flex:1"><div class="team-name">${t.name}</div><div class="team-role">${t.role}</div></div>
+      ${t.you ? '' : '<span class="tag src">Faol</span>'}
+    </div>`).join('');
+}
+document.getElementById('btn-add-team').addEventListener('click', ()=>{
+  document.getElementById('tm-phone').value='';
+  document.getElementById('team-modal').classList.add('active');
+});
+document.getElementById('tm-save').addEventListener('click', ()=>{
+  const phone = document.getElementById('tm-phone').value.trim();
+  const role = document.getElementById('tm-role').value;
+  if(!phone){ alert("Telefon raqamni kiriting"); return; }
+  team.push({ name:"Taklif yuborilgan (" + phone + ")", role });
+  renderTeam();
+  document.getElementById('team-modal').classList.remove('active');
+  toast("Taklif yuborildi");
+});
+document.getElementById('team-modal').addEventListener('click', e=>{ if(e.target.id==='team-modal') e.currentTarget.classList.remove('active'); });
+
+/* ================= Notifications (reminder) system ================= */
+function computeNotifications(){
+  if(!reminderSettings.enabled) return [];
+  const list = [];
+  bookings.filter(b=> b.status==='Tasdiqlangan').forEach(b=>{
+    const diff = Math.round((b.date - today) / 86400000);
+    if(diff === 0 && reminderSettings.dayOf){
+      list.push({ lvl:0, title: b.name, sub: `Bugun — ${b.mehmon||'?'} mehmon, ${b.phone}`, tag:"Bugun" });
+    } else if(diff === reminderSettings.stage2){
+      list.push({ lvl:1, title: b.name, sub: `Ertaga bo'ladi — ${b.mehmon||'?'} mehmon, ${b.phone}`, tag: reminderSettings.stage2+" kun oldin" });
+    } else if(diff === reminderSettings.stage1){
+      list.push({ lvl:5, title: b.name, sub: `${iso(b.date)} kuni bo'ladi — ${b.mehmon||'?'} mehmon`, tag: reminderSettings.stage1+" kun oldin" });
+    }
+  });
+  list.sort((a,b)=> a.lvl - b.lvl);
+  return list;
+}
+function renderNotifBell(){
+  const list = computeNotifications();
+  const badge = document.getElementById('bell-badge');
+  badge.textContent = list.length;
+  badge.style.display = list.length ? 'flex' : 'none';
+}
+function renderNotifSheet(){
+  const list = computeNotifications();
+  const wrap = document.getElementById('notif-list');
+  if(!reminderSettings.enabled){
+    wrap.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><div>Eslatmalar o'chirilgan</div></div>`;
+    return;
+  }
+  if(!list.length){
+    wrap.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><div>Hozircha yangi eslatma yo'q</div></div>`;
+    return;
+  }
+  wrap.innerHTML = list.map(n=>`
+    <div class="notif-item lvl-${n.lvl}">
+      <div class="notif-top"><span class="notif-tag">${n.tag}</span></div>
+      <div class="notif-title">${n.title}</div>
+      <div class="notif-sub">${n.sub}</div>
+    </div>`).join('');
+}
+document.getElementById('bell-btn').addEventListener('click', ()=>{ renderNotifSheet(); document.getElementById('notif-sheet').classList.add('active'); });
+document.getElementById('notif-sheet').addEventListener('click', e=>{ if(e.target.id==='notif-sheet') e.currentTarget.classList.remove('active'); });
+
+document.getElementById('rs-enabled').checked = reminderSettings.enabled;
+document.getElementById('rs-dayof').checked = reminderSettings.dayOf;
+document.getElementById('rs-save').addEventListener('click', ()=>{
+  reminderSettings.enabled = document.getElementById('rs-enabled').checked;
+  reminderSettings.stage1 = parseInt(document.getElementById('rs-stage1').value) || 5;
+  reminderSettings.stage2 = parseInt(document.getElementById('rs-stage2').value) || 1;
+  reminderSettings.dayOf = document.getElementById('rs-dayof').checked;
+  toast("Sozlamalar saqlandi");
+  renderNotifBell();
+});
+
+/* ================= Render all ================= */
+function renderAll(){
+  renderCalendar();
+  renderRequests();
+  renderBookings();
+  renderNotifBell();
+}
+renderAll();
+renderReviews();
+renderTeam();
+showView('kalendar');
+</script>
+</body>
+</html>
